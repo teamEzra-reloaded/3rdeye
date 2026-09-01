@@ -1,0 +1,133 @@
+#define FRONT_TRIG 9
+#define FRONT_ECHO 10
+
+#define DOWN_TRIG 6
+#define DOWN_ECHO 7
+
+#define BUZZER 8
+
+long frontDuration;
+long downDuration;
+
+int frontDistance;
+int downDistance;
+
+// Measure distance
+int getDistance(int trigPin, int echoPin) {
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000);
+
+  if (duration == 0) {
+    return 999;  // No reading
+  }
+
+  int distance = duration * 0.0343 / 2;
+
+  return distance;
+}
+
+void setup() {
+
+  pinMode(FRONT_TRIG, OUTPUT);
+  pinMode(FRONT_ECHO, INPUT);
+
+  pinMode(DOWN_TRIG, OUTPUT);
+  pinMode(DOWN_ECHO, INPUT);
+
+  pinMode(BUZZER, OUTPUT);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+
+  // Read both sensors
+  frontDistance = getDistance(FRONT_TRIG, FRONT_ECHO);
+
+  delay(30); // Prevent ultrasonic interference
+
+  downDistance = getDistance(DOWN_TRIG, DOWN_ECHO);
+
+  Serial.print("Front: ");
+  Serial.print(frontDistance);
+  Serial.print(" cm   ");
+
+  Serial.print("Down: ");
+  Serial.print(downDistance);
+  Serial.println(" cm");
+
+
+  // =========================================
+  // 1. FRONT OBSTACLE DETECTION
+  // =========================================
+
+  if (frontDistance <= 20) {
+
+    // Very close obstacle
+    tone(BUZZER, 2000);
+    delay(100);
+    noTone(BUZZER);
+    delay(50);
+
+  }
+
+  else if (frontDistance <= 40) {
+
+    // Medium distance
+    tone(BUZZER, 1800);
+    delay(100);
+    noTone(BUZZER);
+    delay(200);
+
+  }
+
+  else if (frontDistance <= 70) {
+
+    // Far obstacle
+    tone(BUZZER, 1500);
+    delay(100);
+    noTone(BUZZER);
+    delay(400);
+  }
+
+
+  // =========================================
+  // 2. HOLE / DROP DETECTION
+  // =========================================
+
+  /*
+     Normal ground distance depends on how the sensor
+     is mounted.
+
+     Example:
+     Normal ground = 20 cm
+     Hole = 35 cm or more
+
+     Adjust HOLE_DISTANCE after testing.
+  */
+
+  else if (downDistance >= 35 && downDistance < 150) {
+
+    // HOLE DETECTED
+    tone(BUZZER, 1000);
+    delay(500);
+    noTone(BUZZER);
+    delay(100);
+  }
+
+  else {
+
+    // Nothing detected
+    noTone(BUZZER);
+  }
+
+  delay(20);
+}
