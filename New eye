@@ -1,0 +1,139 @@
+#include <SoftwareSerial.h>
+#include <DFRobotDFPlayerMini.h>
+
+// ---------- FRONT SENSOR ----------
+#define FRONT_TRIG 9
+#define FRONT_ECHO 10
+
+// ---------- DOWN SENSOR ----------
+#define DOWN_TRIG 6
+#define DOWN_ECHO 7
+
+// ---------- MP3 ----------
+#define MP3_RX 2   // Arduino receives from MP3 TX
+#define MP3_TX 3   // Arduino sends to MP3 RX
+
+SoftwareSerial mp3Serial(MP3_RX, MP3_TX);
+DFRobotDFPlayerMini player;
+
+// Distance variables
+int frontDistance;
+int downDistance;
+
+// Prevent repeated announcements
+unsigned long lastFrontAnnouncement = 0;
+unsigned long lastDropAnnouncement = 0;
+
+const unsigned long announcementDelay = 3000;
+
+
+// ---------- GET DISTANCE ----------
+int getDistance(int trigPin, int echoPin) {
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000);
+
+  if (duration == 0) {
+    return 999;
+  }
+
+  int distance = duration * 0.0343 / 2;
+
+  return distance;
+}
+
+
+void setup() {
+
+  pinMode(FRONT_TRIG, OUTPUT);
+  pinMode(FRONT_ECHO, INPUT);
+
+  pinMode(DOWN_TRIG, OUTPUT);
+  pinMode(DOWN_ECHO, INPUT);
+
+  Serial.begin(9600);
+
+  mp3Serial.begin(9600);
+
+  Serial.println("Starting MP3...");
+
+  if (!player.begin(mp3Serial)) {
+
+    Serial.println("MP3 module not detected!");
+
+    while (true);
+  }
+
+  Serial.println("MP3 module ready!");
+
+  player.volume(25);  // Volume 0-30
+  player.stop();
+}
+
+
+void loop() {
+
+  // Read FRONT sensor
+  frontDistance = getDistance(FRONT_TRIG, FRONT_ECHO);
+
+  // Small delay to prevent ultrasonic interference
+  delay(50);
+
+  // Read DOWN sensor
+  downDistance = getDistance(DOWN_TRIG, DOWN_ECHO);
+
+
+  Serial.print("Front: ");
+  Serial.print(frontDistance);
+
+  Serial.print(" cm | Down: ");
+  Serial.print(downDistance);
+
+  Serial.println(" cm");
+
+
+  // =========================================
+  // DROP / HOLE DETECTION
+  // =========================================
+
+  // Change 35 according to your stick's mounting height
+
+  if (downDistance >= 35 && downDistance < 150) {
+
+    if (millis() - lastDropAnnouncement > announcementDelay) {
+
+      Serial.println("DROP DETECTED!");
+
+      player.play(1);   // 0001.mp3
+
+      lastDropAnnouncement = millis();
+    }
+  }
+
+
+  // =========================================
+  // FRONT OBJECT DETECTION
+  // =========================================
+
+  else if (frontDistance <= 70) {
+
+    if (millis() - lastFrontAnnouncement > announcementDelay) {
+
+      Serial.println("OBJECT IN FRONT!");
+
+      player.play(2);   // 0002.mp3
+
+      lastFrontAnnouncement = millis();
+    }
+  }
+
+
+  delay(100);
+}
